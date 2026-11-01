@@ -1,0 +1,15 @@
+{
+  "name": "MediVerify",
+  "short_name": "MediVerify",
+  "description": "Verify your medicine is genuine and safe in seconds. Kenya's trusted counterfeit medicine detection system.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0f1e",
+  "theme_color": "#0d91e1",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/mv-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "categories": ["health", "medical"],
+  "lang": "en"
+}

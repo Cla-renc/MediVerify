@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Background -->
+  <rect width="64" height="64" rx="14" fill="#0a0f1e"/>
+  <!-- Shield -->
+  <path d="M32 6 L52 14 L52 34 C52 46 32 58 32 58 C32 58 12 46 12 34 L12 14 Z"
+        fill="#0d91e1" opacity="0.15" stroke="#0d91e1" stroke-width="1.5"/>
+  <path d="M32 10 L49 17 L49 34 C49 44 32 55 32 55 C32 55 15 44 15 34 L15 17 Z"
+        fill="#0d91e1" opacity="0.25"/>
+  <!-- Cross / Plus -->
+  <rect x="28.5" y="21" width="7" height="20" rx="2" fill="white"/>
+  <rect x="21" y="28.5" width="22" height="7" rx="2" fill="white"/>
+</svg>

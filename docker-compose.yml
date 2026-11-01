@@ -1,0 +1,64 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mediverify_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-mediverify-super-secret-change-in-production}
+      - HMAC_SECRET_KEY=${HMAC_SECRET_KEY:-mediverify-hmac-key-change-in-production}
+      - DEBUG=${DEBUG:-True}
+      - DATABASE_URL=${DATABASE_URL:-}
+      - AFRICASTALKING_USERNAME=${AFRICASTALKING_USERNAME:-sandbox}
+      - AFRICASTALKING_API_KEY=${AFRICASTALKING_API_KEY:-}
+      - AFRICASTALKING_ENABLED=${AFRICASTALKING_ENABLED:-False}
+      - AFRICASTALKING_BASE_URL=${AFRICASTALKING_BASE_URL:-https://api.sandbox.africastalking.com}
+      - AFRICASTALKING_SENDER_ID=${AFRICASTALKING_SENDER_ID:-}
+      - AFRICASTALKING_CALLBACK_TOKEN=${AFRICASTALKING_CALLBACK_TOKEN:-}
+      - LLM_PROVIDER=${LLM_PROVIDER:-}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
+      - TESSERACT_CMD=${TESSERACT_CMD:-}
+    volumes:
+      - ./backend:/app
+      - media_files:/app/media
+    depends_on:
+      - db
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py seed_data &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  db:
+    image: postgres:15-alpine
+    container_name: mediverify_db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=mediverify
+      - POSTGRES_USER=mediverify
+      - POSTGRES_PASSWORD=mediverify_pass
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mediverify_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  pg_data:
+  media_files:

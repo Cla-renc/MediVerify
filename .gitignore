@@ -1,0 +1,54 @@
+# MediVerify — .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+env/
+.env
+*.pyc
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+/backend/media/
+/backend/staticfiles/
+/backend/models/*.joblib
+
+# Node / Frontend
+node_modules/
+/frontend/dist/
+/frontend/.vite/
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test / Coverage
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.vitest/
+
+# Docker
+.dockerignore
+
+# Evaluation outputs (keep script, not generated reports)
+evaluation/evaluation_results_*.md
