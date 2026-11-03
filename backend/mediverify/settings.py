@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'corsheaders',
+    'channels',
 
     # Custom apps
     'apps.authentication',
@@ -95,6 +96,12 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'mediverify.wsgi.application'
+ASGI_APPLICATION = 'mediverify.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 # Use SQLite locally and a managed PostgreSQL URL when deployed.
 DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()

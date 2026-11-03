@@ -1,10 +1,35 @@
 from rest_framework import viewsets, permissions, status, views
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.utils import timezone
 
 from .models import SuspiciousReport, SystemSettings
 from .serializers import SuspiciousReportSerializer, SystemSettingsSerializer
 from apps.verification.models import CloneAlert, VerificationScan
+from apps.products.models import Batch, Product
+from apps.inventory.models import Pharmacy
+
+
+class PublicStatisticsAPIView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        today = timezone.localdate()
+        scans_today = VerificationScan.objects.filter(scanned_at__date=today)
+        total_today = scans_today.count()
+        genuine_today = scans_today.filter(result_status='GENUINE').count()
+        return Response({
+            'as_of': timezone.now(),
+            'total_scans': VerificationScan.objects.count(),
+            'scans_today': total_today,
+            'genuine_today': genuine_today,
+            'genuine_percent_today': round(genuine_today * 100 / total_today, 1) if total_today else 0,
+            'clone_alerts': CloneAlert.objects.count(),
+            'clone_alerts_pending': CloneAlert.objects.filter(status='PENDING').count(),
+            'registered_products': Product.objects.count(),
+            'registered_batches': Batch.objects.count(),
+            'registered_pharmacies': Pharmacy.objects.count(),
+        })
 
 class SuspiciousReportViewSet(viewsets.ModelViewSet):
     queryset = SuspiciousReport.objects.all().order_by('-created_at')

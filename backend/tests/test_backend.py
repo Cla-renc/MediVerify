@@ -396,12 +396,15 @@ class TestRegistrationAndAuth:
             "password": "secure789",
             "role": "PHARMACIST",
             "phone_number": "+254712345678",
-            "organization_name": "Nairobi Pharmacy"
+            "organization_name": "Nairobi Pharmacy",
+            "license_number": "PHARMACY-TEST-REG-001",
+            "address": "Kenyatta Avenue",
         }
         response = client.post('/api/v1/auth/register/', payload, content_type='application/json')
         assert response.status_code == 201
         data = response.json()
         assert data['role'] == 'PHARMACIST'
+        assert data['pending_approval'] is True
 
     def test_login_returns_jwt_tokens(self, client, db):
         from django.contrib.auth import get_user_model

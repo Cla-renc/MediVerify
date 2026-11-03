@@ -1,8 +1,17 @@
+from io import BytesIO
+import textwrap
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from rest_framework import views, viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from django.utils import timezone
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 
 from .models import VerificationScan, CloneAlert
 from .serializers import VerificationRequestSerializer, VerificationScanSerializer, CloneAlertSerializer
@@ -52,7 +61,9 @@ class VerifyCodeAPIView(views.APIView):
             unit_code = UnitCode.objects.select_related('batch', 'batch__product', 'batch__product__manufacturer').get(secure_code__iexact=raw_code)
         except UnitCode.DoesNotExist:
             # Log invalid scan attempt
-            VerificationScan.objects.create(
+            scan_log = VerificationScan.objects.create(
+                # The UUID is included in the response so an invalid-code check
+                # can still be saved as a clearly labeled verification record.
                 raw_code=raw_code,
                 channel=channel,
                 result_status='INVALID',
@@ -69,7 +80,8 @@ class VerifyCodeAPIView(views.APIView):
                 "message_en": "INVALID MEDICINE CODE: This code was not found in the official registry. DO NOT consume this product.",
                 "message_sw": "DAWA HAPA HAIPO: Nambari hii haipatikani kwenye sajili rasmi. USINYWE dawa hii.",
                 "code": raw_code,
-                "is_genuine": False
+                "is_genuine": False,
+                "verification_details": {"scan_id": str(scan_log.id)},
             }, status=status.HTTP_200_OK)
 
         batch = unit_code.batch
@@ -147,6 +159,24 @@ class VerifyCodeAPIView(views.APIView):
                 alert.risk_score = max(alert.risk_score, detection_result['risk_score'])
                 alert.trigger_reasons = list(set(alert.trigger_reasons + detection_result['reasons']))
                 alert.save()
+            async_to_sync(get_channel_layer().group_send)(
+                'clone_alerts',
+                {
+                    'type': 'clone.alert',
+                    'payload': {
+                        'type': 'clone_alert',
+                        'alert_id': str(alert.id),
+                        'secure_code': unit_code.secure_code,
+                        'product_brand_name': product.brand_name,
+                        'batch_number': batch.batch_number,
+                        'risk_score': alert.risk_score,
+                        'status': alert.status,
+                        'created_at': alert.created_at.isoformat(),
+                        'trigger_reasons': alert.trigger_reasons,
+                        'is_new': created,
+                    },
+                },
+            )
 
         return Response({
             "result_status": result_status,
@@ -187,6 +217,54 @@ class VerifyCodeAPIView(views.APIView):
                 "ml_score": detection_result['ml_score'],
             }
         }, status=status.HTTP_200_OK)
+
+
+class VerificationReceiptAPIView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [VerifyEndpointThrottle]
+
+    def get(self, request, scan_id):
+        scan = get_object_or_404(
+            VerificationScan.objects.select_related(
+                'unit_code__batch__product__manufacturer',
+            ),
+            pk=scan_id,
+        )
+        buffer = BytesIO()
+        document = canvas.Canvas(buffer, pagesize=A4)
+        document.setTitle('MediVerify Verification Receipt')
+        document.setFont('Helvetica-Bold', 18)
+        document.drawString(48, 790, 'MediVerify Verification Receipt')
+        document.setFont('Helvetica', 10)
+        rows = [
+            ('Reference', str(scan.id)),
+            ('Result', scan.get_result_status_display()),
+            ('Verified at', timezone.localtime(scan.scanned_at).strftime('%Y-%m-%d %H:%M:%S %Z')),
+            ('Verification code', scan.raw_code),
+        ]
+        if scan.unit_code_id:
+            batch = scan.unit_code.batch
+            product = batch.product
+            rows.extend([
+                ('Product', f'{product.brand_name} ({product.generic_name})'),
+                ('Manufacturer', product.manufacturer.name),
+                ('Batch', batch.batch_number),
+                ('Expiry date', batch.expiry_date.isoformat()),
+            ])
+        y = 750
+        for label, value in rows:
+            document.setFont('Helvetica-Bold', 10)
+            document.drawString(48, y, f'{label}:')
+            document.setFont('Helvetica', 10)
+            for line_index, line in enumerate(textwrap.wrap(str(value), width=85) or ['']):
+                document.drawString(170, y - line_index * 14, line)
+            y -= max(24, 14 * len(textwrap.wrap(str(value), width=85)))
+        document.setFont('Helvetica-Oblique', 9)
+        document.drawString(48, 110, 'This receipt records a MediVerify database check; it is not a laboratory test or a substitute for professional advice.')
+        document.save()
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="mediverify-receipt-{scan.id}.pdf"'
+        return response
 
 
 class CloneModelAPIView(views.APIView):
