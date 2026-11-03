@@ -9,6 +9,8 @@ import PharmacistPage from './pages/PharmacistPage'
 import AdminPage from './pages/AdminPage'
 import SimulatorPage from './pages/SimulatorPage'
 import ReportPage from './pages/ReportPage'
+import PublicStatsPage from './pages/PublicStatsPage'
+import RegisterPage from './pages/RegisterPage'
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth()
@@ -32,6 +34,8 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<VerifyPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/stats" element={<PublicStatsPage />} />
         <Route path="/report" element={<ReportPage />} />
         <Route path="/simulator" element={<SimulatorPage />} />
 

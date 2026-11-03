@@ -109,6 +109,7 @@ describe('VerificationResult Component', () => {
   it('shows the medicine chat only for genuine verification and allows a language toggle', () => {
     render(<Wrapper><VerificationResult data={mockGenuineData} onReset={vi.fn()} /></Wrapper>)
     expect(screen.getByText('Ask about this medicine')).toBeTruthy()
+    expect(screen.getByText('Download verification receipt')).toBeTruthy()
     act(() => {
       fireEvent.click(screen.getByRole('button', { name: 'Toggle chat language' }))
     })

@@ -1,4 +1,4 @@
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ShieldCheck, Menu, X, Globe, LogOut, User, LayoutDashboard } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
@@ -15,7 +15,6 @@ export default function Navbar() {
   const { lang, toggleLang } = useLang()
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
-  const location = useLocation()
 
   const handleLogout = () => {
     logout()
@@ -45,6 +44,7 @@ export default function Navbar() {
               Dashboard
             </Link>
           )}
+          <Link to="/stats" className="btn-secondary text-xs py-2 px-4">Live statistics</Link>
 
           {/* Language toggle */}
           <button
@@ -91,6 +91,9 @@ export default function Navbar() {
               <LayoutDashboard size={16} /> Dashboard
             </Link>
           )}
+          <Link to="/stats" onClick={() => setOpen(false)} className="block py-2 text-sm text-gray-300 hover:text-white">
+            Live statistics
+          </Link>
           <button onClick={() => { toggleLang(); setOpen(false) }} className="flex items-center gap-2 py-2 text-sm text-gray-300 hover:text-white w-full">
             <Globe size={16} /> {lang === 'en' ? 'Kiswahili' : 'English'}
           </button>

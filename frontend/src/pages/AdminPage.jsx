@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { ShieldAlert, CheckCircle, XCircle, AlertTriangle, RefreshCw, Settings, Users, Map as MapIcon } from 'lucide-react'
@@ -7,7 +7,7 @@ import {
   getCloneModel, retrainCloneModel,
   getReports, getHeatmapData,
   getSystemSettings, updateSystemSettings,
-  getPharmacyTrustRatings, getBatches
+  getPharmacyTrustRatings, getBatches, getCloneAlertSocketURL
 } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import 'leaflet/dist/leaflet.css'
@@ -30,10 +30,70 @@ export default function AdminPage() {
   const [retraining, setRetraining] = useState(false)
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState(null)
+  const [alertConnection, setAlertConnection] = useState('connecting')
 
-  const showToast = (msg, type='success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3500) }
+  const showToast = useCallback((msg, type='success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 3500)
+  }, [])
 
   useEffect(() => { fetchAll() }, [])
+
+  useEffect(() => {
+    if (user?.role !== 'REGULATOR') return undefined
+    let active = true
+    let socket
+    let reconnectTimer
+    let reconnectDelay = 1000
+
+    const connect = () => {
+      if (!active) return
+      const token = localStorage.getItem('mv_access_token')
+      if (!token) {
+        setAlertConnection('disconnected')
+        return
+      }
+      setAlertConnection('connecting')
+      socket = new WebSocket(getCloneAlertSocketURL(), ['mediverify', token])
+      socket.onopen = () => {
+        reconnectDelay = 1000
+        if (active) setAlertConnection('connected')
+      }
+      socket.onmessage = async event => {
+        let notification
+        try {
+          notification = JSON.parse(event.data)
+        } catch {
+          return
+        }
+        if (notification.type !== 'clone_alert' || !active) return
+        try {
+          const response = await getCloneAlerts()
+          setCloneAlerts(response.data.results || response.data)
+        } catch {
+          showToast('A live clone alert arrived, but the alert list could not refresh.', 'error')
+        }
+        showToast(
+          `${notification.is_new ? 'New' : 'Updated'} clone alert: ${notification.product_brand_name} · risk ${Math.round(notification.risk_score)}%.`,
+          'error',
+        )
+      }
+      socket.onclose = () => {
+        if (!active) return
+        setAlertConnection('reconnecting')
+        reconnectTimer = window.setTimeout(connect, reconnectDelay)
+        reconnectDelay = Math.min(reconnectDelay * 2, 30000)
+      }
+      socket.onerror = () => socket.close()
+    }
+
+    connect()
+    return () => {
+      active = false
+      window.clearTimeout(reconnectTimer)
+      socket?.close()
+    }
+  }, [user?.role, showToast])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -107,6 +167,9 @@ export default function AdminPage() {
           <div>
             <h1 className="text-2xl font-black text-white">Regulator Dashboard</h1>
             <p className="text-gray-500 text-sm mt-1">Pharmacy &amp; Poisons Board Kenya · <span className="text-brand-400">{user?.username}</span></p>
+            <p className={`mt-1 text-xs ${alertConnection === 'connected' ? 'text-emerald-300' : 'text-amber-300'}`}>
+              {alertConnection === 'connected' ? '● Live clone alerts connected' : '○ Live clone alerts reconnecting'}
+            </p>
           </div>
           <button onClick={fetchAll} className="btn-secondary text-xs gap-1.5">
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh

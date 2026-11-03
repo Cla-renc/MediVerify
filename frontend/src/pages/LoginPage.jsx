@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ShieldCheck, Eye, EyeOff, LogIn } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
@@ -34,12 +34,6 @@ export default function LoginPage() {
     }
   }
 
-  const DEMO_USERS = [
-    { label: 'Regulator/Admin', username: 'regulator', password: 'admin123', color: 'violet' },
-    { label: 'Manufacturer', username: 'cosmos_mfg', password: 'pass123', color: 'blue' },
-    { label: 'Pharmacist', username: 'nairobi_pharm', password: 'pass123', color: 'emerald' },
-  ]
-
   return (
     <div className="min-h-screen bg-gradient-dark flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
@@ -50,22 +44,6 @@ export default function LoginPage() {
           </div>
           <h1 className="text-2xl font-black text-white">Sign In to <span className="gradient-text">MediVerify</span></h1>
           <p className="text-gray-500 text-sm mt-1">Access your dashboard</p>
-        </div>
-
-        {/* Demo logins */}
-        <div className="glass rounded-xl p-3 mb-4">
-          <p className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Quick Demo Login</p>
-          <div className="flex flex-col gap-1.5">
-            {DEMO_USERS.map(u => (
-              <button key={u.username}
-                onClick={() => setForm({ username: u.username, password: u.password })}
-                className={`text-left px-3 py-2 rounded-lg text-xs font-medium transition-all hover:bg-white/5 ${
-                  u.color === 'violet' ? 'text-violet-400' : u.color === 'blue' ? 'text-brand-400' : 'text-emerald-400'
-                }`}>
-                <span className="font-bold">{u.label}</span> · <span className="text-gray-600">{u.username} / {u.password}</span>
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Login form */}
@@ -92,6 +70,9 @@ export default function LoginPage() {
         <p className="text-center text-xs text-gray-700 mt-4">
           Public medicine verification doesn't require login.{' '}
           <a href="/" className="text-brand-400 hover:underline">Verify a medicine →</a>
+        </p>
+        <p className="mt-3 text-center text-sm text-gray-500">
+          New to MediVerify? <Link to="/register" className="text-brand-300 hover:underline">Create an account</Link>
         </p>
       </div>
     </div>

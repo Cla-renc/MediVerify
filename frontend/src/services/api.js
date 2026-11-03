@@ -43,6 +43,19 @@ api.interceptors.response.use(
 export const login = (data) => api.post('/auth/login/', data)
 export const register = (data) => api.post('/auth/register/', data)
 export const getMe = () => api.get('/auth/me/')
+export const getPublicStatistics = () => api.get('/reports/stats/')
+export const getVerificationReceipt = (scanId) => api.get(`/verify/receipt/${scanId}/`, {
+  responseType: 'blob',
+})
+
+export const getCloneAlertSocketURL = () => {
+  const apiUrl = new URL(BASE_URL, window.location.origin)
+  apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+  apiUrl.pathname = '/ws/clone-alerts/'
+  apiUrl.search = ''
+  apiUrl.hash = ''
+  return apiUrl.toString()
+}
 
 // ── Verification ────────────────────────────────────────────
 export const verifyCode = (data) => api.post('/verify/', data)

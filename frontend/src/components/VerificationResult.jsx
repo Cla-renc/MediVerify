@@ -1,7 +1,7 @@
-import { CheckCircle, XCircle, AlertTriangle, Skull, HelpCircle, ChevronDown, ChevronUp, MessageCircle, Send, Globe } from 'lucide-react'
+import { CheckCircle, XCircle, AlertTriangle, Skull, HelpCircle, ChevronDown, ChevronUp, MessageCircle, Send, Globe, Download } from 'lucide-react'
 import { useState } from 'react'
 import { useLang } from '../context/LangContext'
-import { askMedicineQuestion } from '../services/api'
+import { askMedicineQuestion, getVerificationReceipt } from '../services/api'
 
 const STATUS_CONFIG = {
   GENUINE:        { icon: CheckCircle,    color: 'green',  cls: 'badge-genuine',  border: 'border-emerald-500/40',  glow: 'glow-green',  bg: 'from-emerald-950/60 to-emerald-900/20' },
@@ -24,6 +24,8 @@ export default function VerificationResult({ data, onReset }) {
   const [medicineSearch, setMedicineSearch] = useState('')
   const [chatMessages, setChatMessages] = useState([])
   const [chatLoading, setChatLoading] = useState(false)
+  const [receiptLoading, setReceiptLoading] = useState(false)
+  const [receiptError, setReceiptError] = useState('')
   if (!data) return null
 
   const status = data.result_status
@@ -59,6 +61,28 @@ export default function VerificationResult({ data, onReset }) {
       setChatMessages(messages => [...messages, { role: 'assistant', text: message }])
     } finally {
       setChatLoading(false)
+    }
+  }
+
+  const downloadReceipt = async () => {
+    const scanId = data.verification_details?.scan_id
+    if (!scanId || receiptLoading) return
+    setReceiptLoading(true)
+    setReceiptError('')
+    try {
+      const response = await getVerificationReceipt(scanId)
+      const url = URL.createObjectURL(response.data)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `mediverify-receipt-${scanId}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch {
+      setReceiptError(lang === 'sw' ? 'Risiti haikuweza kupakuliwa.' : 'Could not download the verification receipt.')
+    } finally {
+      setReceiptLoading(false)
     }
   }
 
@@ -158,6 +182,11 @@ export default function VerificationResult({ data, onReset }) {
                   </button>
                 ))}
               </div>
+              <p className="text-xs text-gray-500">
+                {chatLang === 'sw'
+                  ? 'Majibu hutegemea rekodi za dawa zilizosajiliwa; ufunguo wa AI ya nje si lazima.'
+                  : 'Answers use registered medicine records; an external AI key is optional.'}
+              </p>
               <label className="block text-xs text-gray-500">
                 {chatLang === 'sw' ? 'Dawa nyingine (hiari)' : 'Ask about another medicine (optional)'}
                 <input className="input mt-1" value={medicineSearch} maxLength={100}
@@ -190,13 +219,24 @@ export default function VerificationResult({ data, onReset }) {
           <div className="flex items-center justify-between text-xs text-gray-600 border-t border-white/5 pt-3">
             <span>Scan #{details?.scan_id?.slice(0,8)}</span>
             <span>{t('scan_count')}: {details?.scan_count}</span>
-            <span>{new Date(details?.scanned_at).toLocaleString()}</span>
+            <span>{details?.scanned_at ? new Date(details.scanned_at).toLocaleString() : ''}</span>
           </div>
         </div>
       )}
 
       {/* Reset button */}
       <div className="px-6 pb-5">
+        {data.verification_details?.scan_id && (
+          <div className="mb-3">
+            <button type="button" onClick={downloadReceipt} disabled={receiptLoading} className="btn-secondary w-full">
+              <Download size={15} />
+              {receiptLoading
+                ? (lang === 'sw' ? 'Inapakua…' : 'Downloading…')
+                : (lang === 'sw' ? 'Pakua risiti ya uthibitisho' : 'Download verification receipt')}
+            </button>
+            {receiptError && <p role="alert" className="mt-2 text-center text-xs text-red-300">{receiptError}</p>}
+          </div>
+        )}
         <button onClick={onReset} className="btn-secondary w-full">
           {lang === 'sw' ? 'Hakiki Dawa Nyingine' : 'Verify Another Medicine'}
         </button>
