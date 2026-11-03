@@ -276,6 +276,34 @@ POST /api/v1/verify/clones/model/      Regulator model status/retraining
 
 ## 🌍 Deployment (VPS)
 
+### Render + Neon (hosted student/demo deployment)
+
+The backend now uses SQLite for local development and PostgreSQL when `DATABASE_URL` is set. Keep database passwords and all secret keys in Render environment variables; never commit them or paste them into chat. If a database URL has been exposed, rotate its password before deploying.
+
+1. Push this project to its own GitHub repository. Do not include `.env`, SQLite databases, virtual environments, or generated model files.
+2. In Neon, create a PostgreSQL project. Copy its connection string and keep it private. Choose a region near the Render backend (Frankfurt is a reasonable choice if selected for both).
+3. In Render, create a **Web Service** from the GitHub repository and set its **Root Directory** to `backend`. Choose a Python runtime and, if available, the same region as Neon.
+   - Build command: `pip install -r requirements.txt && python manage.py collectstatic --noinput`
+   - Start command: `python manage.py migrate && gunicorn mediverify.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 120`
+4. Add these backend environment variables in Render (use Render's generated backend hostname for the host):
+   - `DEBUG=False`
+   - `DJANGO_SECRET_KEY` and `HMAC_SECRET_KEY`: separate, randomly generated secrets (at least 50 and 32 characters respectively). Generate values locally with `python -c "import secrets; print(secrets.token_urlsafe(48))"` and `python -c "import secrets; print(secrets.token_urlsafe(40))"`, then enter them directly as private Render environment variables.
+   - `DATABASE_URL`: the newly rotated Neon connection string
+   - `ALLOWED_HOSTS=YOUR-BACKEND.onrender.com`
+   - `CORS_ALLOWED_ORIGINS=https://YOUR-FRONTEND.onrender.com`
+   - `CSRF_TRUSTED_ORIGINS=https://YOUR-BACKEND.onrender.com,https://YOUR-FRONTEND.onrender.com`
+   - Optional LLM/Tesseract/Africa's Talking variables only when those services are configured. Do not enable live Africa's Talking until its account, sender/service code, and public callbacks are ready.
+5. After the backend deploys, create a Render **Static Site** from the same GitHub repository with **Root Directory** `frontend`.
+   - Build command: `npm ci && npm run build`
+   - Publish directory: `dist`
+   - Set `VITE_API_URL=https://YOUR-BACKEND.onrender.com/api/v1` in the Static Site environment.
+   - Add a rewrite rule from `/*` to `/index.html` with status `200`, so React client-side routes work on refresh.
+6. Once the Static Site is deployed, update the backend's `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS` with its exact HTTPS origin, then redeploy the backend.
+7. Seed demonstration data intentionally from the Render Shell/one-off command after deployment: `python manage.py seed_data`. This creates demo users and records; do not make this a repeat-on-every-deploy command. Create the regulator account through a controlled setup path and change demo passwords before exposing the service publicly.
+8. Test the hosted frontend, API docs at `https://YOUR-BACKEND.onrender.com/api/docs/`, authentication, and database persistence across backend redeploys. The free Render web service can sleep while idle; Neon Free has usage limits and may scale compute to zero. Check the providers' current terms and keep backups of data you need.
+
+This is suitable for a class presentation, not a production medicine-authentication service. A Render + Neon deployment does not connect MediVerify to an official medicine registry or independently authenticate real manufacturers' codes.
+
 ```bash
 # 1. Clone repo and set .env
 cp .env.example .env

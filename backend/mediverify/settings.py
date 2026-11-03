@@ -2,6 +2,8 @@ import os
 import sys
 from pathlib import Path
 from datetime import timedelta
+import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -14,12 +16,27 @@ sys.path.insert(0, str(BASE_DIR / 'apps'))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-mediverify-super-secret-key-2026-kenya-anti-counterfeit')
-HMAC_SECRET_KEY = os.environ.get('HMAC_SECRET_KEY', 'mediverify-hmac-secret-signature-key-998877')
-
 DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = ['*']
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-mediverify-super-secret-key-2026-kenya-anti-counterfeit',
+)
+HMAC_SECRET_KEY = os.environ.get('HMAC_SECRET_KEY', 'mediverify-hmac-secret-signature-key-998877')
+
+if not DEBUG:
+    if len(SECRET_KEY) < 50 or SECRET_KEY.startswith('django-insecure-'):
+        raise ImproperlyConfigured('Set a random DJANGO_SECRET_KEY with at least 50 characters in production.')
+    if len(HMAC_SECRET_KEY) < 32 or HMAC_SECRET_KEY == 'mediverify-hmac-secret-signature-key-998877':
+        raise ImproperlyConfigured('Set a unique HMAC_SECRET_KEY with at least 32 characters in production.')
+
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
+else:
+    allowed_hosts = os.environ.get('ALLOWED_HOSTS', os.environ.get('RENDER_EXTERNAL_HOSTNAME', ''))
+    ALLOWED_HOSTS = [host.strip() for host in allowed_hosts.split(',') if host.strip()]
+    if not ALLOWED_HOSTS or '*' in ALLOWED_HOSTS:
+        raise ImproperlyConfigured('Set ALLOWED_HOSTS to the backend hostname(s) in production.')
 
 # Application definition
 INSTALLED_APPS = [
@@ -50,6 +67,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -78,13 +96,29 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'mediverify.wsgi.application'
 
-# Database configuration (SQLite by default, PostgreSQL if DATABASE_URL provided)
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Use SQLite locally and a managed PostgreSQL URL when deployed.
+DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=0,
+            conn_health_checks=True,
+            ssl_require=not DEBUG,
+        ),
     }
-}
+    if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
+        DATABASES['default'].setdefault('OPTIONS', {})['options'] = '-c statement_timeout=15000'
+        DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
+elif DEBUG:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+else:
+    raise ImproperlyConfigured('DATABASE_URL is required when DEBUG is False.')
 
 # Custom User Model
 AUTH_USER_MODEL = 'authentication.User'
@@ -115,6 +149,11 @@ USE_TZ = True
 # Static & Media Files
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = (
+    'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    if not DEBUG
+    else 'django.contrib.staticfiles.storage.StaticFilesStorage'
+)
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -154,9 +193,26 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# CORS Configuration
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS Configuration: keep permissive behavior for local development only.
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+    if origin.strip()
+]
 CORS_ALLOW_CREDENTIALS = True
+if not DEBUG and (not CORS_ALLOWED_ORIGINS or '*' in CORS_ALLOWED_ORIGINS):
+    raise ImproperlyConfigured('Set CORS_ALLOWED_ORIGINS to the frontend HTTPS origin in production.')
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 
 # Africa's Talking Settings
 AFRICASTALKING_USERNAME = os.environ.get('AFRICASTALKING_USERNAME', 'sandbox')
