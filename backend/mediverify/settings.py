@@ -108,7 +108,6 @@ if DATABASE_URL:
         ),
     }
     if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
-        DATABASES['default'].setdefault('OPTIONS', {})['options'] = '-c statement_timeout=15000'
         DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
 elif DEBUG:
     DATABASES = {
