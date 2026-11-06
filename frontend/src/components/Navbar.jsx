@@ -68,9 +68,10 @@ export default function Navbar() {
               </button>
             </div>
           ) : (
-            <Link to="/login" className="btn-primary text-xs py-2 px-4">
-              Sign In
-            </Link>
+            <>
+              <Link to="/login" className="btn-secondary text-xs py-2 px-4">Sign In</Link>
+              <Link to="/register" className="btn-primary text-xs py-2 px-4">Sign Up</Link>
+            </>
           )}
         </div>
 
@@ -102,9 +103,14 @@ export default function Navbar() {
               <LogOut size={16} /> Sign Out ({user.username})
             </button>
           ) : (
-            <Link to="/login" onClick={() => setOpen(false)} className="flex items-center gap-2 py-2 text-sm text-brand-400 hover:text-brand-300">
-              Sign In
-            </Link>
+            <>
+              <Link to="/login" onClick={() => setOpen(false)} className="flex items-center gap-2 py-2 text-sm text-gray-300 hover:text-white">
+                Sign In
+              </Link>
+              <Link to="/register" onClick={() => setOpen(false)} className="flex items-center gap-2 py-2 text-sm text-brand-400 hover:text-brand-300">
+                Sign Up
+              </Link>
+            </>
           )}
         </div>
       )}

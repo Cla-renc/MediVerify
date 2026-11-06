@@ -204,6 +204,13 @@ python manage.py evaluate_ocr
 python manage.py evaluate_chatbot
 ```
 
+If existing seeded demo users were previously registered under the `PUBLIC` role, use
+`python manage.py repair_demo_accounts` against the deployment database to restore the
+seeded manufacturer, pharmacist, and regulator roles and link their profiles. This command
+does not reseed products/scans or change account passwords. Run it from a local checkout
+configured with the same private production environment variables and Neon `DATABASE_URL`;
+never paste the connection string into source control or chat.
+
 Clone evaluation results are written to `evaluation/clone_detection_results.csv` and `.png`; OCR evaluation writes a per-image CSV under `evaluation/`. The chatbot evaluation uses a bilingual set of 60 supported question/answer pairs plus out-of-context refusal cases. Synthetic scans are training/evaluation examples, not evidence that the detector is clinically or operationally validated.
 
 Configure optional hosted chat in `.env` or the hosting provider's private environment settings with `LLM_PROVIDER` (`anthropic` or `openai-compatible`), `LLM_API_KEY`, and `LLM_MODEL`. For a compatible endpoint, set `LLM_BASE_URL`. A hosted provider key is optional: without it, the chat returns the requested section directly from the selected registered medicine record (no external AI-generated answer). Only the user's question and selected medicine context are sent to a configured provider. Never put provider keys in frontend `VITE_` variables or commit them.
